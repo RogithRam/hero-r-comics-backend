@@ -1,0 +1,916 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hero-R Comics</title>
+<style>
+:root{
+  --bg:#15131A; --panel:#1F1C26; --panel-2:#0E0D12; --ink:#F5F1E8; --ink-dim:#B8B0A6; --ink-faint:#8B8378;
+  --line:#342F3D; --accent:#FF5B42; --accent-ink:#15131A; --blue:#5B8CFF; --yellow:#FFD23E;
+  --font-display:'Space Grotesk',system-ui,sans-serif; --font-body:'Inter',system-ui,sans-serif;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);
+  padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px));}
+h1,h2,h3,.display{font-family:var(--font-display)}
+a{color:var(--ink)}
+button{font-family:inherit;cursor:pointer}
+input,textarea,select{font-family:inherit;font-size:15px;color:var(--ink);background:var(--panel-2);
+  border:2px solid var(--line);border-radius:10px;padding:11px 14px;width:100%}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--blue);border-color:var(--blue)}
+label{display:block;font-size:13px;font-weight:600;color:var(--ink-dim);margin-bottom:6px}
+.field{margin-bottom:16px}
+.halftone{background-image:radial-gradient(circle, rgba(245,241,232,0.10) 1.5px, transparent 1.5px);background-size:11px 11px}
+.wrap{max-width:900px;margin:0 auto;padding:0 8px}
+.narrow{max-width:460px;margin:0 auto;padding:0 8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:999px;
+  border:2px solid var(--ink);font-weight:700;font-size:15px;padding:13px 24px;}
+.btn-primary{background:var(--accent);color:var(--accent-ink);box-shadow:4px 4px 0 var(--ink)}
+.btn-ghost{background:transparent;color:var(--ink)}
+.btn-block{width:100%}
+.btn[disabled]{opacity:0.55;cursor:not-allowed}
+.card{background:var(--panel);border:2px solid var(--ink);border-radius:16px;padding:22px;box-shadow:5px 5px 0 var(--line)}
+.pill{display:inline-flex;align-items:center;border:2px solid var(--ink);border-radius:999px;padding:5px 12px;font-size:12.5px;font-weight:700}
+nav.top{position:sticky;top:0;z-index:30;background:var(--bg);border-bottom:2px solid var(--line);
+  padding-top:env(safe-area-inset-top,0px)}
+nav.top .row{max-width:1100px;margin:0 auto;padding:16px 8px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:20px;text-decoration:none}
+.err{color:var(--accent);font-size:13.5px;margin-top:-6px;margin-bottom:12px;min-height:1px}
+.ok{color:var(--blue);font-size:13.5px}
+.step-head{display:flex;align-items:center;gap:10px;margin-bottom:22px}
+.step-num{width:30px;height:30px;border-radius:999px;border:2px solid var(--ink);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none}
+.grid-opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:14px}
+.opt{border:2px solid var(--line);border-radius:14px;padding:16px;cursor:pointer;background:var(--panel-2);text-align:left;color:var(--ink);font-family:inherit}
+.opt.selected{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}
+.opt h4{margin:0 0 6px;font-size:15.5px;color:var(--ink)}
+.opt p{margin:0;font-size:13px;color:var(--ink-dim)}
+.wizard-actions{display:flex;justify-content:space-between;gap:12px;margin-top:26px}
+.comics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:18px}
+.comic-thumb{width:100%;border-radius:12px;border:2px solid var(--ink);display:block;margin-bottom:10px;background:var(--panel-2)}
+.muted{color:var(--ink-dim)}
+footer{padding:40px 8px;text-align:center;color:var(--ink-faint);font-size:13px;border-top:2px solid var(--line);margin-top:40px}
+[hidden]{display:none!important}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<nav class="top">
+  <div class="row">
+    <a href="#" class="brand" onclick="return nav('landing')">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-4.5 4.2c-.5.4-1.2.1-1.2-.6V16H5a2 2 0 0 1-2-2V5Z" fill="#FF5B42" stroke="#F5F1E8" stroke-width="1.6"/></svg>
+      Hero-R Comics
+    </a>
+    <div id="navRight" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"></div>
+  </div>
+</nav>
+
+<main class="wrap" style="padding-top:32px;padding-bottom:40px">
+
+  <section id="view-landing">
+    <div class="halftone" style="border:2px solid var(--ink);border-radius:18px;padding:40px 28px;text-align:center;margin-bottom:28px">
+      <span class="pill" style="background:var(--yellow);color:var(--accent-ink);margin-bottom:16px">Live build</span>
+      <h1 style="font-size:clamp(28px,5vw,42px);font-weight:900;margin:0 0 12px;letter-spacing:-0.5px">Build your comic, start to finish</h1>
+      <p class="muted" style="max-width:480px;margin:0 auto 24px;font-size:16px;line-height:1.55">Create an account, build your character's face, hair and body, pick a story and wardrobe, and get a real comic you can download — right now.</p>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="nav('signup')">Create your account</button>
+        <button class="btn btn-ghost" onclick="nav('login')">Log in</button>
+      </div>
+    </div>
+    <div class="grid-opts">
+      <div class="card"><h3 style="margin:0 0 6px;font-size:16px">1. Sign up</h3><p class="muted" style="margin:0;font-size:14px">A real account, saved to your database.</p></div>
+      <div class="card"><h3 style="margin:0 0 6px;font-size:16px">2. Build &amp; choose</h3><p class="muted" style="margin:0;font-size:14px">Your character, story, cast and wardrobe.</p></div>
+      <div class="card"><h3 style="margin:0 0 6px;font-size:16px">3. Download</h3><p class="muted" style="margin:0;font-size:14px">Your comic as an image or PDF.</p></div>
+    </div>
+  </section>
+
+  <section id="view-signup" hidden>
+    <div class="narrow card">
+      <h2 style="margin:0 0 20px;font-size:24px">Create your account</h2>
+      <form id="signupForm">
+        <div class="field"><label for="suName">Name</label><input id="suName" required></div>
+        <div class="field"><label for="suEmail">Email</label><input id="suEmail" type="email" required></div>
+        <div class="field"><label for="suPass">Password</label><input id="suPass" type="password" required minlength="6"></div>
+        <div class="err" id="suErr"></div>
+        <div class="ok" id="suOk" style="margin-bottom:12px"></div>
+        <button type="submit" class="btn btn-primary btn-block" id="suBtn">Sign up</button>
+      </form>
+      <p class="muted" style="font-size:13.5px;margin-top:16px">Already have an account? <a href="#" onclick="return nav('login')" style="color:var(--blue)">Log in</a></p>
+    </div>
+  </section>
+
+  <section id="view-login" hidden>
+    <div class="narrow card">
+      <h2 style="margin:0 0 20px;font-size:24px">Log in</h2>
+      <form id="loginForm">
+        <div class="field"><label for="liEmail">Email</label><input id="liEmail" type="email" required></div>
+        <div class="field"><label for="liPass">Password</label><input id="liPass" type="password" required></div>
+        <div class="err" id="liErr"></div>
+        <button type="submit" class="btn btn-primary btn-block">Log in</button>
+      </form>
+      <p class="muted" style="font-size:13.5px;margin-top:16px">New here? <a href="#" onclick="return nav('signup')" style="color:var(--blue)">Create an account</a><br>Forgot your password? <a href="#" onclick="return nav('forgot')" style="color:var(--blue)">Reset it</a></p>
+    </div>
+  </section>
+
+  <section id="view-forgot" hidden>
+    <div class="narrow card">
+      <h2 style="margin:0 0 10px;font-size:24px">Reset your password</h2>
+      <p class="muted" style="font-size:13.5px;margin:0 0 20px">We'll email you a secure link to set a new password.</p>
+      <form id="forgotForm">
+        <div class="field"><label for="fpEmail">Email</label><input id="fpEmail" type="email" required></div>
+        <div class="err" id="fpErr"></div>
+        <div class="ok" id="fpOk" style="margin-bottom:12px"></div>
+        <button type="submit" class="btn btn-primary btn-block">Send reset link</button>
+      </form>
+      <p class="muted" style="font-size:13.5px;margin-top:16px"><a href="#" onclick="return nav('login')" style="color:var(--blue)">Back to log in</a></p>
+    </div>
+  </section>
+
+  <section id="view-resetpw" hidden>
+    <div class="narrow card">
+      <h2 style="margin:0 0 10px;font-size:24px">Set a new password</h2>
+      <p class="muted" style="font-size:13.5px;margin:0 0 20px">You followed the link from your email — choose a new password below.</p>
+      <form id="resetpwForm">
+        <div class="field"><label for="rpPass">New password</label><input id="rpPass" type="password" required minlength="6"></div>
+        <div class="err" id="rpErr"></div>
+        <div class="ok" id="rpOk" style="margin-bottom:12px"></div>
+        <button type="submit" class="btn btn-primary btn-block">Update password</button>
+      </form>
+    </div>
+  </section>
+
+  <section id="view-create" hidden>
+    <div class="card" style="max-width:640px;margin:0 auto">
+      <div id="stepHost"></div>
+      <div class="wizard-actions">
+        <button class="btn btn-ghost" id="backBtn" onclick="wizardBack()">Back</button>
+        <button class="btn btn-primary" id="nextBtn" onclick="wizardNext()">Continue</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-result" hidden>
+    <div class="card" style="max-width:520px;margin:0 auto;text-align:center">
+      <span class="pill" style="background:var(--yellow);color:var(--accent-ink);margin-bottom:14px">Episode 1 — Free</span>
+      <h2 style="margin:0 0 16px;font-size:22px">Your comic panel</h2>
+      <canvas id="resultCanvas" width="640" height="640" style="width:100%;border-radius:12px;border:2px solid var(--ink);background:var(--panel-2)"></canvas>
+      <div style="display:flex;gap:12px;justify-content:center;margin-top:20px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="downloadResult('png')">Download image</button>
+        <button class="btn btn-ghost" onclick="downloadResult('pdf')">Download PDF</button>
+      </div>
+      <p class="muted" id="resultNote" style="font-size:13px;margin-top:18px"></p>
+      <button class="btn btn-ghost" style="margin-top:10px" onclick="nav('mycomics')">Go to My Comics</button>
+    </div>
+
+    <div class="card" style="max-width:520px;margin:28px auto 0">
+      <h3 style="margin:0 0 8px;font-size:18px">Continue the story — Episode 2</h3>
+      <p class="muted" style="font-size:14px;margin:0 0 18px">The showdown continues. Unlock Episode 2 to see how it ends.</p>
+      <div id="episodeLockedBox">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px">
+          <span class="muted" style="font-size:14px">Episode 2 price</span>
+          <strong id="episodePrice"></strong>
+        </div>
+        <button class="btn btn-primary btn-block" id="stripeBtn" onclick="openStripe()">Unlock Episode 2</button>
+        <button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="confirmPaid()">I've completed payment — unlock</button>
+        <p class="muted" id="stripeNote" style="font-size:12px;margin-top:12px"></p>
+      </div>
+      <div id="episodeUnlockedBox" hidden>
+        <canvas id="resultCanvas2" width="640" height="640" style="width:100%;border-radius:12px;border:2px solid var(--ink);background:var(--panel-2)"></canvas>
+        <div style="display:flex;gap:12px;justify-content:center;margin-top:20px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="downloadResult('png',2)">Download image</button>
+          <button class="btn btn-ghost" onclick="downloadResult('pdf',2)">Download PDF</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-mycomics" hidden>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+      <h2 style="margin:0;font-size:22px">My Comics</h2>
+      <button class="btn btn-primary" onclick="startCreate()">New comic</button>
+    </div>
+    <div id="comicsList" class="comics-grid"></div>
+    <p id="comicsEmpty" class="muted" hidden>No comics yet — start your first one above.</p>
+  </section>
+
+</main>
+
+<footer>© 2026 Hero-R Comics</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  // ====================================================================
+  // CONFIG — fill these in before deploying (see README.md)
+  // ====================================================================
+  var SUPABASE_URL = 'https://klucjeinwyhxgqkldgms.supabase.co';
+  var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsdWNqZWlud3loeGdxa2xkZ21zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI5MzAxNDUsImV4cCI6MjEwODUwNjE0NX0.C8TypqQz_dlAMOxTCFknOmqWcRbLFfDOXJhWwgASO70';
+  var AI_BACKEND_URL = 'https://hero-r-comics-backend.onrender.com';
+
+  // Fill with a real Stripe Payment Link URL once you have one.
+  var STRIPE_PAYMENT_LINK = '';
+  var EPISODE2_PRICE = '[YOUR PRICE]';
+  // ====================================================================
+
+  var sb = (window.supabase && SUPABASE_URL.indexOf('YOUR-PROJECT') === -1)
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+
+  var session = null; // {id, email, name}
+
+  var PRESETS = [
+    {id:'backyard', title:'The Backyard Expedition', blurb:'An everyday hero discovers a secret world hiding in the backyard.'},
+    {id:'power', title:'Power for a Day', blurb:'Your hero wakes up with a mysterious new power and 24 hours to decide how to use it.'},
+    {id:'bakeoff', title:'The Great Bake-Off Heist', blurb:'A silly caper where the hero must save the neighborhood bake sale.'},
+    {id:'starlight', title:'Starlight Rescue', blurb:'A space adventure where your hero pilots a ship to rescue a stranded friend.'}
+  ];
+  var CHAR_TYPES = [
+    {id:'baby', title:'Baby', blurb:'Gentle, playful styling for the littlest hero.'},
+    {id:'kid', title:'Kid', blurb:'Bright, adventurous styling for a young hero.'},
+    {id:'adult-male', title:'Adult — Male', blurb:'Bold hero looks for an adult male lead.'},
+    {id:'adult-female', title:'Adult — Female', blurb:'Bold hero looks for an adult female lead.'}
+  ];
+  var WARDROBES = {
+    baby: ['Onesie','Cozy Romper','Tiny Cape'],
+    kid: ['Everyday Outfit','Costume','School Uniform'],
+    'adult-male': ['Hero Suit','Everyday Fit','Themed Outfit'],
+    'adult-female': ['Hero Suit','Everyday Fit','Themed Outfit']
+  };
+  var VILLAINS = [
+    {id:'shadow-broker', title:'The Shadow Broker', blurb:'Trades in secrets and shortcuts — never shows a true face.'},
+    {id:'glitch', title:'Glitch', blurb:'Bends machines and signals to chaos wherever it goes.'},
+    {id:'collector', title:'The Collector', blurb:'Hoards rare and powerful things, including people.'},
+    {id:'nightshade', title:'Nightshade', blurb:'Moves unseen, striking only after the lights go out.'}
+  ];
+  var FACE_SHAPES = [{id:'round',title:'Round'},{id:'oval',title:'Oval'},{id:'square',title:'Square'},{id:'heart',title:'Heart'}];
+  var SKIN_TONES  = [{id:'s1',title:'Fair',hex:'#FFDFC4'},{id:'s2',title:'Light',hex:'#F0C8A0'},{id:'s3',title:'Tan',hex:'#D9A066'},{id:'s4',title:'Golden',hex:'#B87A4B'},{id:'s5',title:'Deep',hex:'#8D5524'},{id:'s6',title:'Rich',hex:'#5C3A21'}];
+  var HAIR_STYLES = [{id:'short',title:'Short'},{id:'long',title:'Long'},{id:'curly',title:'Curly'},{id:'buzz',title:'Buzz'},{id:'ponytail',title:'Ponytail'}];
+  var HAIR_COLORS = [{id:'h1',title:'Black',hex:'#1B1B1B'},{id:'h2',title:'Brown',hex:'#4A2E19'},{id:'h3',title:'Blonde',hex:'#D4A017'},{id:'h4',title:'Red',hex:'#B33A1E'},{id:'h5',title:'Blue',hex:'#2B5FFF'},{id:'h6',title:'Purple',hex:'#8B2FD6'}];
+  var EYE_STYLES  = [{id:'round',title:'Round'},{id:'narrow',title:'Narrow'},{id:'wide',title:'Wide'},{id:'sleepy',title:'Sleepy'}];
+  var NOSE_STYLES = [{id:'small',title:'Small'},{id:'button',title:'Button'},{id:'long',title:'Long'},{id:'wide',title:'Wide'}];
+  var EAR_STYLES  = [{id:'small',title:'Small'},{id:'large',title:'Large'},{id:'pointed',title:'Pointed'}];
+  var BODY_SHAPES = [{id:'slim',title:'Slim'},{id:'athletic',title:'Athletic'},{id:'round',title:'Round'},{id:'tall',title:'Tall'}];
+  var OUTFIT_COLORS = [{id:'o1',title:'Blaze',hex:'#FF5B42'},{id:'o2',title:'Sky',hex:'#5B8CFF'},{id:'o3',title:'Gold',hex:'#FFD23E'},{id:'o4',title:'Jade',hex:'#2E9E6B'},{id:'o5',title:'Ink',hex:'#15131A'},{id:'o6',title:'Chalk',hex:'#F5F1E8'}];
+  var AVATAR_GROUPS = [
+    {key:'faceShape', label:'Face shape', options:FACE_SHAPES},
+    {key:'skin', label:'Skin tone', options:SKIN_TONES, swatch:true},
+    {key:'hair', label:'Hair style', options:HAIR_STYLES},
+    {key:'hairColor', label:'Hair color', options:HAIR_COLORS, swatch:true},
+    {key:'eyes', label:'Eyes', options:EYE_STYLES},
+    {key:'nose', label:'Nose', options:NOSE_STYLES},
+    {key:'ears', label:'Ears', options:EAR_STYLES},
+    {key:'body', label:'Body shape', options:BODY_SHAPES},
+    {key:'outfit', label:'Outfit color', options:OUTFIT_COLORS, swatch:true}
+  ];
+  function defaultAvatar(){ return {faceShape:'round', skin:'s2', hair:'short', hairColor:'h1', eyes:'round', nose:'small', ears:'small', body:'athletic', outfit:'o1'}; }
+  function hexFor(arr,id){ var o=arr.find(function(x){return x.id===id;}); return o?o.hex:'#999'; }
+  function shade(hex, amt){
+    var c = String(hex||'#999999').replace('#','');
+    if (c.length!==6) c='999999';
+    var r=parseInt(c.substring(0,2),16), g=parseInt(c.substring(2,4),16), b=parseInt(c.substring(4,6),16);
+    r=Math.max(0,Math.min(255,r+amt)); g=Math.max(0,Math.min(255,g+amt)); b=Math.max(0,Math.min(255,b+amt));
+    return '#'+[r,g,b].map(function(v){ return Math.round(v).toString(16).padStart(2,'0'); }).join('');
+  }
+  function costumeDetailsFor(wardrobe){
+    var w = String(wardrobe||'').toLowerCase();
+    if (w.indexOf('hero')>-1 || w.indexOf('costume')>-1 || w.indexOf('cape')>-1) return {cape:true, emblem:true, collar:false, stripes:false};
+    if (w.indexOf('uniform')>-1) return {cape:false, emblem:false, collar:true, stripes:false};
+    if (w.indexOf('themed')>-1 || w.indexOf('romper')>-1) return {cape:false, emblem:false, collar:false, stripes:true};
+    return {cape:false, emblem:false, collar:false, stripes:false};
+  }
+
+  var wiz = { step:0, storyMode:'preset', storyId:null, script:'', villainId:null, charType:null, wardrobe:null, avatar: defaultAvatar() };
+
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+  // ---- Browser download (no platform capability needed here) ----
+  function saveBlob(blob, filename){
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a'); a.href=url; a.download=filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+  }
+
+  function renderNav(){
+    var el = $('navRight');
+    if (session){
+      el.innerHTML = '<span class="muted" style="font-size:14px">Hi, '+esc(session.name||session.email)+'</span>'+
+        '<button class="btn btn-ghost" style="padding:8px 16px;font-size:13px" onclick="nav(\'mycomics\')">My Comics</button>'+
+        '<button class="btn btn-ghost" style="padding:8px 16px;font-size:13px" onclick="doLogout()">Log out</button>';
+    } else {
+      el.innerHTML = '<button class="btn btn-ghost" style="padding:8px 16px;font-size:13px" onclick="nav(\'login\')">Log in</button>'+
+        '<button class="btn btn-primary" style="padding:8px 16px;font-size:13px" onclick="nav(\'signup\')">Sign up</button>';
+    }
+  }
+
+  var VIEWS = ['landing','signup','login','forgot','resetpw','create','result','mycomics'];
+  function nav(name){
+    if ((name==='create' || name==='mycomics') && !session){ nav('login'); return false; }
+    VIEWS.forEach(function(v){ $('view-'+v).hidden = (v!==name); });
+    renderNav();
+    if (name==='mycomics') loadMyComics();
+    if (name==='create' && wiz.step===0) renderStep();
+    window.scrollTo(0,0);
+    return false;
+  }
+  window.nav = nav;
+
+  function configError(){
+    return !sb ? 'This site is not configured yet — SUPABASE_URL/SUPABASE_ANON_KEY need to be filled in (see README.md).' : '';
+  }
+
+  // ---- Auth (Supabase) ----
+  $('signupForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    var name=$('suName').value.trim(), email=$('suEmail').value.trim(), pass=$('suPass').value;
+    $('suErr').textContent=''; $('suOk').textContent='';
+    var cfgErr = configError(); if (cfgErr){ $('suErr').textContent=cfgErr; return; }
+    try {
+      var { data, error } = await sb.auth.signUp({ email: email, password: pass, options: { data: { name: name } } });
+      if (error){ $('suErr').textContent = error.message; return; }
+      if (data.session){
+        session = { id: data.user.id, email: data.user.email, name: name };
+        startCreate();
+      } else {
+        $('suOk').textContent = 'Account created — check your email to confirm it, then log in.';
+      }
+    } catch(err){ $('suErr').textContent = 'Could not create account: ' + (err && err.message ? err.message : 'try again.'); }
+  });
+
+  $('loginForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    var email=$('liEmail').value.trim(), pass=$('liPass').value;
+    $('liErr').textContent='';
+    var cfgErr = configError(); if (cfgErr){ $('liErr').textContent=cfgErr; return; }
+    try {
+      var { data, error } = await sb.auth.signInWithPassword({ email: email, password: pass });
+      if (error){ $('liErr').textContent = error.message; return; }
+      session = { id: data.user.id, email: data.user.email, name: (data.user.user_metadata||{}).name || data.user.email };
+      nav('mycomics');
+    } catch(err){ $('liErr').textContent = 'Could not log in: ' + (err && err.message ? err.message : 'try again.'); }
+  });
+
+  $('forgotForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    var email=$('fpEmail').value.trim();
+    $('fpErr').textContent=''; $('fpOk').textContent='';
+    var cfgErr = configError(); if (cfgErr){ $('fpErr').textContent=cfgErr; return; }
+    try {
+      var { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname });
+      if (error){ $('fpErr').textContent = error.message; return; }
+      $('fpOk').textContent = 'Check your email for a password reset link.';
+      $('forgotForm').reset();
+    } catch(err){ $('fpErr').textContent = 'Could not send reset email: ' + (err && err.message ? err.message : 'try again.'); }
+  });
+
+  $('resetpwForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    var newPass = $('rpPass').value;
+    $('rpErr').textContent=''; $('rpOk').textContent='';
+    try {
+      var { error } = await sb.auth.updateUser({ password: newPass });
+      if (error){ $('rpErr').textContent = error.message; return; }
+      $('rpOk').textContent = 'Password updated. Redirecting you to log in…';
+      setTimeout(function(){ sb.auth.signOut(); session=null; nav('login'); }, 1500);
+    } catch(err){ $('rpErr').textContent = 'Could not update password: ' + (err && err.message ? err.message : 'try again.'); }
+  });
+
+  window.doLogout = function(){ if (sb) sb.auth.signOut(); session = null; nav('landing'); };
+
+  // ---- Wizard ----
+  window.startCreate = function(){
+    wiz = { step:0, storyMode:'preset', storyId:null, script:'', villainId:null, charType:null, wardrobe:null, avatar: defaultAvatar() };
+    nav('create'); renderStep();
+  };
+
+  function wardrobeOptionsFor(charType){ return WARDROBES[charType] || []; }
+
+  var STEP_TITLES = ['Choose your story','Pick a villain','Who is the star?','Build your character','Pick a wardrobe','Review & create'];
+  var LAST_STEP = STEP_TITLES.length - 1;
+
+  function stepHead(){
+    return '<div class="step-head"><div class="step-num">'+(wiz.step+1)+'</div><h2 style="margin:0;font-size:19px">'+esc(STEP_TITLES[wiz.step])+'</h2></div>';
+  }
+
+  function renderStep(){
+    var host = $('stepHost');
+    var back = $('backBtn'), next = $('nextBtn');
+    back.style.visibility = wiz.step===0 ? 'hidden' : 'visible';
+    next.textContent = wiz.step===LAST_STEP ? 'Create my comic' : 'Continue';
+
+    if (wiz.step===0){
+      host.innerHTML = stepHead()+
+        '<div style="display:flex;gap:10px;margin-bottom:18px">'+
+          '<button class="btn '+(wiz.storyMode==='preset'?'btn-primary':'btn-ghost')+'" style="padding:9px 18px;font-size:13.5px" onclick="setStoryMode(\'preset\')">Preset story</button>'+
+          '<button class="btn '+(wiz.storyMode==='custom'?'btn-primary':'btn-ghost')+'" style="padding:9px 18px;font-size:13.5px" onclick="setStoryMode(\'custom\')">Write my own</button>'+
+        '</div>'+
+        (wiz.storyMode==='preset' ?
+          '<div class="grid-opts">'+PRESETS.map(function(p){
+            return '<button type="button" class="opt '+(wiz.storyId===p.id?'selected':'')+'" onclick="pickStory(\''+p.id+'\')"><h4>'+esc(p.title)+'</h4><p>'+esc(p.blurb)+'</p></button>';
+          }).join('')+'</div>'
+          :
+          '<div class="field"><label for="scriptInput">Your script</label><textarea id="scriptInput" rows="6" placeholder="Panel 1: ...">'+esc(wiz.script)+'</textarea></div>'
+        );
+    } else if (wiz.step===1){
+      host.innerHTML = stepHead()+
+        '<p class="muted" style="font-size:13.5px;margin:0 0 16px">Who\'s standing in your hero\'s way this episode?</p>'+
+        '<div class="grid-opts">'+VILLAINS.map(function(v){
+          return '<button type="button" class="opt '+(wiz.villainId===v.id?'selected':'')+'" onclick="pickVillain(\''+v.id+'\')"><h4>'+esc(v.title)+'</h4><p>'+esc(v.blurb)+'</p></button>';
+        }).join('')+'</div>';
+    } else if (wiz.step===2){
+      host.innerHTML = stepHead()+
+        '<div class="grid-opts">'+CHAR_TYPES.map(function(c){
+          return '<button type="button" class="opt '+(wiz.charType===c.id?'selected':'')+'" onclick="pickCharType(\''+c.id+'\')"><h4>'+esc(c.title)+'</h4><p>'+esc(c.blurb)+'</p></button>';
+        }).join('')+'</div>';
+    } else if (wiz.step===3){
+      renderBuildStep(host);
+    } else if (wiz.step===4){
+      var opts = wardrobeOptionsFor(wiz.charType);
+      host.innerHTML = stepHead()+
+        '<p class="muted" style="font-size:13.5px;margin:0 0 16px">Pick a costume — your character\'s outfit changes to match.</p>'+
+        '<div class="grid-opts">'+opts.map(function(w){
+          return '<button type="button" class="opt '+(wiz.wardrobe===w?'selected':'')+'" onclick="pickWardrobe(\''+esc(w)+'\')" style="display:flex;gap:12px;align-items:center;text-align:left">'+
+            '<span style="flex:none;width:56px;height:84px;border-radius:8px;overflow:hidden;background:var(--panel-2);display:inline-block">'+avatarSVG(wiz.avatar,56,84,w)+'</span>'+
+            '<span><h4>'+esc(w)+'</h4></span>'+
+          '</button>';
+        }).join('')+'</div>';
+    } else if (wiz.step===5){
+      host.innerHTML = stepHead()+
+        '<div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start">'+
+          '<div style="flex:none;border:2px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel-2)">'+avatarSVG(wiz.avatar,110,165,wiz.wardrobe)+'</div>'+
+          '<div class="muted" style="font-size:14.5px;line-height:1.7;flex:1;min-width:200px">'+
+            '<div><strong style="color:var(--ink)">Story:</strong> '+(wiz.storyMode==='preset' ? esc((PRESETS.find(function(p){return p.id===wiz.storyId;})||{}).title||'—') : 'Custom script')+'</div>'+
+            '<div><strong style="color:var(--ink)">Villain:</strong> '+esc((VILLAINS.find(function(v){return v.id===wiz.villainId;})||{}).title||'—')+'</div>'+
+            '<div><strong style="color:var(--ink)">Cast:</strong> '+esc((CHAR_TYPES.find(function(c){return c.id===wiz.charType;})||{}).title||'—')+'</div>'+
+            '<div><strong style="color:var(--ink)">Character:</strong> custom built</div>'+
+            '<div><strong style="color:var(--ink)">Wardrobe:</strong> '+esc(wiz.wardrobe||'—')+'</div>'+
+          '</div>'+
+        '</div>';
+    }
+  }
+
+  // ---- Character builder (SVG, no photo/AI needed for the preview) ----
+  function renderBuildStep(host){
+    host.innerHTML = stepHead()+
+      '<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">'+
+        '<div style="flex:none;margin:0 auto">'+
+          '<div id="avatarPreviewBox" style="width:160px;height:240px;border:2px solid var(--line);border-radius:12px;background:var(--panel-2);overflow:hidden">'+avatarSVG(wiz.avatar,160,240,wiz.wardrobe)+'</div>'+
+        '</div>'+
+        '<div style="flex:1;min-width:220px">'+AVATAR_GROUPS.map(renderAvatarGroup).join('')+'</div>'+
+      '</div>';
+  }
+  function renderAvatarGroup(g){
+    return '<div style="margin-bottom:16px"><label style="margin-bottom:8px">'+esc(g.label)+'</label>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">'+g.options.map(function(o){
+        var sel = wiz.avatar[g.key]===o.id;
+        if (g.swatch){
+          return '<button type="button" title="'+esc(o.title)+'" aria-label="'+esc(o.title)+'" onclick="pickAvatar(\''+g.key+'\',\''+o.id+'\')" '+
+            'style="width:32px;height:32px;border-radius:999px;border:2px solid '+(sel?'var(--accent)':'var(--ink)')+';background:'+o.hex+';cursor:pointer;'+(sel?'box-shadow:0 0 0 2px var(--accent)':'')+'"></button>';
+        }
+        return '<button type="button" onclick="pickAvatar(\''+g.key+'\',\''+o.id+'\')" class="btn '+(sel?'btn-primary':'btn-ghost')+'" style="padding:7px 14px;font-size:12.5px">'+esc(o.title)+'</button>';
+      }).join('')+'</div></div>';
+  }
+  window.pickAvatar = function(key,id){
+    wiz.avatar[key]=id;
+    if (wiz.step===3) renderBuildStep($('stepHost'));
+  };
+
+  function avatarSVG(a, w, h, wardrobe){
+    a = a||{};
+    var skin = hexFor(SKIN_TONES, a.skin) || '#F0C8A0';
+    var hairColor = hexFor(HAIR_COLORS, a.hairColor) || '#1B1B1B';
+    var outfit = hexFor(OUTFIT_COLORS, a.outfit) || '#FF5B42';
+    var cd = costumeDetailsFor(wardrobe);
+
+    var bodyPaths = {
+      slim:     'M58,238 Q100,192 142,238 L140,172 Q100,154 60,172 Z',
+      athletic: 'M42,238 Q100,178 158,238 L156,168 Q100,144 44,168 Z',
+      round:    'M46,238 Q100,198 154,238 L158,178 Q100,168 42,178 Z',
+      tall:     'M60,238 Q100,188 140,238 L138,164 Q100,150 62,164 Z'
+    };
+    var bodyPath = bodyPaths[a.body] || bodyPaths.athletic;
+    var neckSVG = '<rect x="90" y="160" width="20" height="18" fill="'+skin+'" stroke="#15131A" stroke-width="2"/>';
+    var capeSVG = cd.cape ? '<path d="M56,168 Q30,230 62,280 L74,172 Z M144,168 Q170,230 138,280 L126,172 Z" fill="'+shade(outfit,-45)+'" stroke="#15131A" stroke-width="2.5"/>' : '';
+    var legColor = shade(outfit,-18);
+    var legsSVG = '<rect x="72" y="236" width="24" height="46" rx="8" fill="'+legColor+'" stroke="#15131A" stroke-width="2.5"/>'+
+                  '<rect x="104" y="236" width="24" height="46" rx="8" fill="'+legColor+'" stroke="#15131A" stroke-width="2.5"/>'+
+                  '<rect x="68" y="276" width="30" height="14" rx="5" fill="#15131A"/>'+
+                  '<rect x="102" y="276" width="30" height="14" rx="5" fill="#15131A"/>';
+    var collarSVG = cd.collar ? '<path d="M86,166 L100,180 L114,166 Z" fill="#F5F1E8" stroke="#15131A" stroke-width="2"/>' : '';
+    var emblemSVG = cd.emblem ? '<circle cx="100" cy="190" r="11" fill="#F5F1E8" stroke="#15131A" stroke-width="2"/><circle cx="100" cy="190" r="4.5" fill="'+outfit+'"/>' : '';
+    var stripesSVG = cd.stripes ? '<g stroke="#F5F1E8" stroke-width="4" opacity="0.8">'+
+      '<line x1="55" y1="185" x2="80" y2="230"/><line x1="78" y1="178" x2="103" y2="232"/><line x1="101" y1="172" x2="126" y2="232"/><line x1="124" y1="170" x2="145" y2="228"/>'+
+      '</g>' : '';
+
+    var headShapes = {
+      round:  '<ellipse cx="100" cy="108" rx="54" ry="54" fill="'+skin+'" stroke="#15131A" stroke-width="3"/>',
+      oval:   '<ellipse cx="100" cy="110" rx="46" ry="62" fill="'+skin+'" stroke="#15131A" stroke-width="3"/>',
+      square: '<rect x="52" y="56" width="96" height="104" rx="22" fill="'+skin+'" stroke="#15131A" stroke-width="3"/>',
+      heart:  '<path d="M100,170 Q50,140 50,98 Q50,56 100,60 Q150,56 150,98 Q150,140 100,170 Z" fill="'+skin+'" stroke="#15131A" stroke-width="3"/>'
+    };
+    var headShape = headShapes[a.faceShape] || headShapes.round;
+
+    var earsSVG;
+    if (a.ears==='pointed'){
+      earsSVG = '<path d="M44,90 L30,60 L56,82 Z" fill="'+skin+'" stroke="#15131A" stroke-width="2.5"/>'+
+                 '<path d="M156,90 L170,60 L144,82 Z" fill="'+skin+'" stroke="#15131A" stroke-width="2.5"/>';
+    } else {
+      var e = a.ears==='large' ? {rx:13,ry:20} : {rx:8,ry:14};
+      earsSVG = '<ellipse cx="46" cy="108" rx="'+e.rx+'" ry="'+e.ry+'" fill="'+skin+'" stroke="#15131A" stroke-width="2.5"/>'+
+                '<ellipse cx="154" cy="108" rx="'+e.rx+'" ry="'+e.ry+'" fill="'+skin+'" stroke="#15131A" stroke-width="2.5"/>';
+    }
+
+    var eyeShapes = {
+      round:  '<circle cx="82" cy="108" r="7" fill="#15131A"/><circle cx="118" cy="108" r="7" fill="#15131A"/>',
+      narrow: '<ellipse cx="82" cy="108" rx="9" ry="3" fill="#15131A"/><ellipse cx="118" cy="108" rx="9" ry="3" fill="#15131A"/>',
+      wide:   '<ellipse cx="82" cy="108" rx="11" ry="8" fill="#15131A"/><ellipse cx="118" cy="108" rx="11" ry="8" fill="#15131A"/>',
+      sleepy: '<path d="M73,106 Q82,114 91,106" stroke="#15131A" stroke-width="3" fill="none"/><path d="M109,106 Q118,114 127,106" stroke="#15131A" stroke-width="3" fill="none"/>'
+    };
+    var eyesSVG = eyeShapes[a.eyes] || eyeShapes.round;
+    var eyebrowsSVG = '<path d="M74,97 Q82,91 90,97" stroke="#15131A" stroke-width="2.5" fill="none" stroke-linecap="round"/><path d="M110,97 Q118,91 126,97" stroke="#15131A" stroke-width="2.5" fill="none" stroke-linecap="round"/>';
+
+    var noseShapes = {
+      small:  '<path d="M98,112 Q96,128 100,130 Q104,128 102,112" fill="none" stroke="#15131A" stroke-width="2.5"/>',
+      button: '<circle cx="100" cy="124" r="5" fill="none" stroke="#15131A" stroke-width="2.5"/>',
+      long:   '<path d="M97,108 Q93,134 100,138 Q107,134 103,108" fill="none" stroke="#15131A" stroke-width="2.5"/>',
+      wide:   '<path d="M94,112 Q90,130 100,132 Q110,130 106,112" fill="none" stroke="#15131A" stroke-width="2.5"/>'
+    };
+    var noseSVG = noseShapes[a.nose] || noseShapes.small;
+
+    var mouthSVG = '<path d="M80,142 Q100,156 120,142" stroke="#15131A" stroke-width="3" fill="none" stroke-linecap="round"/>';
+
+    var hairShapes = {
+      short:    '<path d="M48,96 Q50,48 100,46 Q150,48 152,96 Q130,78 100,78 Q70,78 48,96 Z" fill="'+hairColor+'" stroke="#15131A" stroke-width="2.5"/>',
+      long:     '<path d="M46,170 Q36,80 100,44 Q164,80 154,170 Q150,110 150,96 Q130,78 100,78 Q70,78 50,96 Q50,110 46,170 Z" fill="'+hairColor+'" stroke="#15131A" stroke-width="2.5"/>',
+      curly:    '<g fill="'+hairColor+'" stroke="#15131A" stroke-width="2"><circle cx="58" cy="76" r="14"/><circle cx="78" cy="58" r="15"/><circle cx="100" cy="50" r="16"/><circle cx="122" cy="58" r="15"/><circle cx="142" cy="76" r="14"/></g>',
+      buzz:     '<path d="M50,92 Q52,54 100,52 Q148,54 150,92" fill="none" stroke="'+hairColor+'" stroke-width="7"/>',
+      ponytail: '<path d="M48,96 Q50,48 100,46 Q150,48 152,96 Q130,78 100,78 Q70,78 48,96 Z" fill="'+hairColor+'" stroke="#15131A" stroke-width="2.5"/>'+
+                 '<path d="M150,90 Q176,100 168,148 Q160,120 148,100 Z" fill="'+hairColor+'" stroke="#15131A" stroke-width="2.5"/>'
+    };
+    var hairSVG = hairShapes[a.hair] || hairShapes.short;
+
+    return '<svg viewBox="0 0 200 300" width="'+(w||200)+'" height="'+(h||300)+'" xmlns="http://www.w3.org/2000/svg">'+
+      '<rect x="0" y="0" width="200" height="300" fill="#F5F1E8"/>'+
+      capeSVG + legsSVG +
+      '<path d="'+bodyPath+'" fill="'+outfit+'" stroke="#15131A" stroke-width="3"/>'+
+      stripesSVG + neckSVG + collarSVG + emblemSVG +
+      earsSVG + headShape + hairSVG + eyebrowsSVG + eyesSVG + noseSVG + mouthSVG +
+    '</svg>';
+  }
+  async function rasterizeAvatar(a, w, h, wardrobe){
+    var svgStr = avatarSVG(a, w, h, wardrobe);
+    var svgBlob = new Blob([svgStr], {type:'image/svg+xml'});
+    var url = URL.createObjectURL(svgBlob);
+    try {
+      var img = await loadImage(url);
+      var c = document.createElement('canvas'); c.width=w; c.height=h;
+      var ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      return c.toDataURL('image/png');
+    } finally { URL.revokeObjectURL(url); }
+  }
+
+  // ---- Real AI stylization (calls the backend you deployed on Render) ----
+  async function stylizeWithAI(imageDataUrl, style){
+    if (!AI_BACKEND_URL) return null;
+    var controller = new AbortController();
+    var timeout = setTimeout(function(){ controller.abort(); }, 60000); // Render free tier can cold-start ~30-50s
+    try {
+      var res = await fetch(AI_BACKEND_URL.replace(/\/$/,'') + '/api/stylize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageDataUrl: imageDataUrl, style: style || '' }),
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+      if (!res.ok) return null;
+      var data = await res.json();
+      return data.imageUrl || null;
+    } catch(e){
+      clearTimeout(timeout);
+      return null; // backend unreachable/cold-start timeout — caller falls back to the SVG avatar
+    }
+  }
+
+  window.setStoryMode = function(m){ wiz.storyMode=m; renderStep(); };
+  window.pickStory = function(id){ wiz.storyId=id; renderStep(); };
+  window.pickVillain = function(id){ wiz.villainId=id; renderStep(); };
+  window.pickCharType = function(id){ wiz.charType=id; wiz.wardrobe=null; renderStep(); };
+  window.pickWardrobe = function(w){ wiz.wardrobe=w; renderStep(); };
+
+  function loadImage(src){
+    return new Promise(function(resolve,reject){
+      var img = new Image(); img.crossOrigin='anonymous'; img.onload=function(){resolve(img);}; img.onerror=reject; img.src=src;
+    });
+  }
+
+  window.wizardBack = function(){ if (wiz.step>0){ wiz.step--; renderStep(); } };
+  window.wizardNext = async function(){
+    if (wiz.step===0){
+      if (wiz.storyMode==='custom'){ wiz.script = ($('scriptInput')||{}).value || ''; if (!wiz.script.trim()){ return; } }
+      else if (!wiz.storyId){ return; }
+    }
+    if (wiz.step===1 && !wiz.villainId) return;
+    if (wiz.step===2 && !wiz.charType) return;
+    if (wiz.step===4 && !wiz.wardrobe) return;
+    if (wiz.step===LAST_STEP){ await finishComic(); return; }
+    wiz.step++; renderStep();
+  };
+
+  function toDbRow(ownerId, record){
+    return {
+      owner_id: ownerId, title: record.title, caption: record.caption,
+      story_mode: record.storyMode, char_type: record.charType, wardrobe: record.wardrobe,
+      villain_id: record.villainId, villain_title: record.villainTitle, avatar: record.avatar,
+      photo_url: record.photoUrl, episode2_unlocked: !!record.episode2Unlocked
+    };
+  }
+  function fromDbRow(row){
+    return {
+      id: row.id, title: row.title, caption: row.caption,
+      storyMode: row.story_mode, charType: row.char_type, wardrobe: row.wardrobe,
+      villainId: row.villain_id, villainTitle: row.villain_title, avatar: row.avatar,
+      photoUrl: row.photo_url, episode2Unlocked: row.episode2_unlocked, createdAt: row.created_at
+    };
+  }
+
+  async function finishComic(){
+    var nextBtn = $('nextBtn'); nextBtn.textContent='Rendering character…'; nextBtn.disabled=true;
+    var avatarDataUrl = await rasterizeAvatar(wiz.avatar, 480, 720, wiz.wardrobe);
+
+    var usedAI = false;
+    nextBtn.textContent='Generating AI art (can take up to a minute)…';
+    var aiUrl = await stylizeWithAI(avatarDataUrl, wiz.wardrobe);
+    var photoUrl = avatarDataUrl;
+    if (aiUrl){ photoUrl = aiUrl; usedAI = true; }
+
+    var title = wiz.storyMode==='preset' ? (PRESETS.find(function(p){return p.id===wiz.storyId;})||{}).title : 'My Script';
+    var caption = wiz.storyMode==='preset' ? (PRESETS.find(function(p){return p.id===wiz.storyId;})||{}).blurb : wiz.script.slice(0,80);
+    var villain = VILLAINS.find(function(v){return v.id===wiz.villainId;}) || {};
+
+    var record = {
+      title: title, caption: caption,
+      storyMode: wiz.storyMode, charType: wiz.charType, wardrobe: wiz.wardrobe,
+      villainId: wiz.villainId, villainTitle: villain.title||'', avatar: wiz.avatar,
+      photoUrl: photoUrl, episode2Unlocked: false
+    };
+
+    nextBtn.textContent='Saving…';
+    try {
+      if (sb && session){
+        var { data, error } = await sb.from('projects').insert(toDbRow(session.id, record)).select().single();
+        if (!error && data) record.id = data.id;
+      }
+    } catch(e){ /* keep going even if save fails */ }
+
+    $('resultNote').textContent = usedAI
+      ? 'Generated by AI from the character you built, keeping the same face.'
+      : 'Shown using your in-browser character (the AI art backend didn\'t respond in time — it may be waking up on Render\'s free tier; try again in a minute).';
+
+    await drawResult(record);
+    nav('result');
+    nextBtn.textContent='Create my comic'; nextBtn.disabled=false;
+  }
+
+  // ---- Result canvas ----
+  var lastRecord = null;
+  async function drawResult(record){
+    lastRecord = record;
+    await drawPanel('resultCanvas', record, '#FF5B42');
+    renderEpisodeBox(record);
+    if (record.episode2Unlocked) await drawEpisode2(record);
+  }
+  async function drawEpisode2(record){
+    var villainTitle = record.villainTitle || 'the villain';
+    var ep2 = {
+      photoUrl: record.photoUrl,
+      villainTitle: record.villainTitle,
+      title: 'Episode 2: The Confrontation',
+      caption: 'The real fight begins — can our hero stop ' + villainTitle + ' before it\'s too late?',
+      episode2Unlocked: true
+    };
+    await drawPanel('resultCanvas2', ep2, '#5B8CFF');
+  }
+  // Draws a full comic PAGE as a 4-panel dialogue strip: hero and villain
+  // take turns speaking in speech bubbles, like an actual back-and-forth
+  // conversation.
+  async function drawPanel(canvasId, record, badgeColor){
+    var canvas = $(canvasId);
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    var W=canvas.width, H=canvas.height;
+    var g = 10;
+    ctx.fillStyle = '#15131A'; ctx.fillRect(0,0,W,H);
+
+    var bannerH = 34;
+    ctx.fillStyle = badgeColor||'#FF5B42';
+    ctx.fillRect(g, g, W-g*2, bannerH);
+    ctx.strokeStyle='#15131A'; ctx.lineWidth=2; ctx.strokeRect(g, g, W-g*2, bannerH);
+    ctx.fillStyle='#15131A'; ctx.textAlign='left';
+    ctx.font='900 17px Space Grotesk, sans-serif';
+    ctx.fillText((record.title||'YOUR COMIC').toUpperCase().slice(0,44), g+12, g+23);
+
+    var gridY = g+bannerH+g;
+    var panelH = Math.floor((H-gridY-g*2)/2);
+    var panelW = Math.floor((W-g*3)/2);
+    var col1X=g, col2X=g+panelW+g;
+    var row1Y=gridY, row2Y=gridY+panelH+g;
+
+    var villainTitle = record.villainTitle || 'the villain';
+    var lines = dialogueLines(record, villainTitle);
+
+    await drawHeroPanel(ctx, col1X, row1Y, panelW, panelH, record.photoUrl, lines[0], 'right');
+    drawVillainPanel(ctx, col2X, row1Y, panelW, panelH, badgeColor||'#FF5B42', villainTitle, lines[1], 'left');
+    await drawHeroPanel(ctx, col1X, row2Y, panelW, panelH, record.photoUrl, lines[2], 'right');
+    drawVillainPanel(ctx, col2X, row2Y, panelW, panelH, badgeColor||'#FF5B42', villainTitle, lines[3], 'left');
+  }
+
+  function dialogueLines(record, villainTitle){
+    return [
+      record.caption || 'Our hero steps forward, ready for anything.',
+      'So, you\'ve finally come. I am ' + villainTitle + '.',
+      'Not today. I won\'t let you win.',
+      record.episode2Unlocked ? 'We\'ll see about that...' : 'We\'ll see about that... (continues in Episode 2)'
+    ];
+  }
+
+  function drawHalftonePanel(ctx,x,y,w,h,bg){
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip();
+    ctx.fillStyle=bg; ctx.fillRect(x,y,w,h);
+    ctx.fillStyle='rgba(245,241,232,0.07)';
+    for (var yy=y+6; yy<y+h; yy+=10){ for (var xx=x+6; xx<x+w; xx+=10){ ctx.beginPath(); ctx.arc(xx,yy,1.3,0,Math.PI*2); ctx.fill(); } }
+    ctx.restore();
+  }
+
+  async function drawHeroPanel(ctx,x,y,w,h,photoUrl,line,tailSide){
+    drawHalftonePanel(ctx,x,y,w,h,'#1F1C26');
+    await new Promise(function(resolve){
+      if (!photoUrl){ resolve(); return; }
+      var img = new Image(); img.crossOrigin='anonymous';
+      img.onload = function(){
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip();
+        var scale = Math.max(w/img.width, h/img.height)*1.08;
+        var dw = img.width*scale, dh = img.height*scale;
+        ctx.drawImage(img, x+(w-dw)/2, y+(h-dh)*0.15, dw, dh);
+        ctx.restore();
+        resolve();
+      };
+      img.onerror = function(){ resolve(); };
+      img.src = photoUrl;
+    });
+    ctx.strokeStyle='#F5F1E8'; ctx.lineWidth=5; ctx.strokeRect(x,y,w,h);
+    drawBubble(ctx,x,y,w,h,line,tailSide);
+  }
+
+  function drawVillainPanel(ctx,x,y,w,h,color,villainTitle,line,tailSide){
+    drawHalftonePanel(ctx,x,y,w,h,'#0E0D12');
+    var cx=x+w/2, cy=y+h*0.4;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip();
+    ctx.fillStyle='#15131A';
+    ctx.beginPath();
+    ctx.moveTo(cx, cy-h*0.28);
+    ctx.quadraticCurveTo(cx-w*0.26, cy-h*0.05, cx-w*0.22, cy+h*0.22);
+    ctx.quadraticCurveTo(cx, cy+h*0.3, cx+w*0.22, cy+h*0.22);
+    ctx.quadraticCurveTo(cx+w*0.26, cy-h*0.05, cx, cy-h*0.28);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle=color; ctx.lineWidth=3; ctx.stroke();
+    ctx.fillStyle=color;
+    ctx.beginPath(); ctx.arc(cx-w*0.055, cy, Math.max(3,w*0.018), 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx+w*0.055, cy, Math.max(3,w*0.018), 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle='#F5F1E8'; ctx.lineWidth=5; ctx.strokeRect(x,y,w,h);
+    ctx.fillStyle='#F5F1E8'; ctx.textAlign='center'; ctx.font='700 12px Space Grotesk, sans-serif';
+    ctx.fillText(villainTitle.toUpperCase().slice(0,30), cx, y+h-10);
+    ctx.textAlign='left';
+    drawBubble(ctx,x,y,w,h,line,tailSide);
+  }
+
+  function drawBubble(ctx,x,y,w,h,text,tailSide){
+    var bh = Math.max(56, Math.round(h*0.3));
+    var bx=x+10, by=y+h-bh-10, bw=w-20;
+    ctx.fillStyle='#F5F1E8'; ctx.strokeStyle='#15131A'; ctx.lineWidth=3;
+    roundRect(ctx,bx,by,bw,bh,12); ctx.fill(); ctx.stroke();
+    var tx = tailSide==='right' ? bx+bw-40 : bx+40;
+    ctx.beginPath();
+    ctx.moveTo(tx-14, by);
+    ctx.lineTo(tx+2, by-16);
+    ctx.lineTo(tx+16, by);
+    ctx.closePath();
+    ctx.fillStyle='#F5F1E8'; ctx.fill();
+    ctx.strokeStyle='#15131A'; ctx.lineWidth=3; ctx.stroke();
+    ctx.fillStyle='#15131A'; ctx.font='600 12px Inter, sans-serif';
+    wrapText(ctx, text, bx+12, by+20, bw-24, 15);
+  }
+
+  function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+  function wrapText(ctx,text,x,y,maxW,lineH){
+    var words=String(text).split(' '), line='', yy=y;
+    for (var i=0;i<words.length;i++){
+      var test=line+words[i]+' ';
+      if (ctx.measureText(test).width>maxW && line){ ctx.fillText(line,x,yy); line=words[i]+' '; yy+=lineH; if (yy>y+lineH*2) break; }
+      else line=test;
+    }
+    ctx.fillText(line,x,yy);
+  }
+
+  function renderEpisodeBox(record){
+    $('episodePrice').textContent = EPISODE2_PRICE;
+    var unlocked = !!record.episode2Unlocked;
+    $('episodeLockedBox').hidden = unlocked;
+    $('episodeUnlockedBox').hidden = !unlocked;
+    var note = $('stripeNote'), btn = $('stripeBtn');
+    if (!STRIPE_PAYMENT_LINK){
+      note.textContent = 'Stripe isn\'t connected yet — once a real Stripe Payment Link is added, this button opens real checkout to your bank account.';
+      btn.disabled = true;
+    } else {
+      note.textContent = 'Opens Stripe checkout in a new tab. After paying, come back and confirm below — this build has no payment-verification server yet.';
+      btn.disabled = false;
+    }
+  }
+  window.openStripe = function(){
+    if (!STRIPE_PAYMENT_LINK) return;
+    var a = document.createElement('a'); a.href = STRIPE_PAYMENT_LINK; a.target = '_blank'; a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+  window.confirmPaid = async function(){
+    if (!lastRecord) return;
+    lastRecord.episode2Unlocked = true;
+    try { if (sb && lastRecord.id) await sb.from('projects').update({ episode2_unlocked: true }).eq('id', lastRecord.id); } catch(e){}
+    renderEpisodeBox(lastRecord);
+    await drawEpisode2(lastRecord);
+  };
+
+  window.downloadResult = async function(kind, episode){
+    var canvas = $(episode===2 ? 'resultCanvas2' : 'resultCanvas');
+    var filename = 'hero-r-comic-ep'+(episode===2?2:1)+'.' + (kind==='pdf'?'pdf':'png');
+    try {
+      if (kind==='png'){
+        var blob = await new Promise(function(res){ canvas.toBlob(res,'image/png'); });
+        saveBlob(blob, filename);
+      } else {
+        var pdf = new jspdf.jsPDF({ unit:'px', format:[canvas.width, canvas.height] });
+        var dataUrl = canvas.toDataURL('image/png');
+        pdf.addImage(dataUrl, 'PNG', 0, 0, canvas.width, canvas.height);
+        var pblob = pdf.output('blob');
+        saveBlob(pblob, filename);
+      }
+    } catch(e){ /* download failed */ }
+  };
+
+  // ---- My comics ----
+  async function loadMyComics(){
+    var list = $('comicsList'), empty = $('comicsEmpty');
+    list.innerHTML = ''; empty.hidden = true;
+    if (!sb || !session) return;
+    try {
+      var { data, error } = await sb.from('projects').select('*').eq('owner_id', session.id).order('created_at', { ascending: false });
+      if (error) throw error;
+      var rows = (data||[]).map(fromDbRow);
+      if (!rows.length){ empty.hidden = false; return; }
+      list.innerHTML = rows.map(function(r){
+        return '<div class="card">'+
+          (r.photoUrl ? '<img class="comic-thumb" src="'+esc(r.photoUrl)+'" style="height:140px;object-fit:cover">' : '')+
+          '<h4 style="margin:0 0 6px;font-size:15.5px">'+esc(r.title||'Untitled')+'</h4>'+
+          '<p class="muted" style="margin:0 0 10px;font-size:13px">'+esc(r.wardrobe||'')+'</p>'+
+          '<button class="btn btn-ghost" style="padding:8px 16px;font-size:13px" onclick="reopenComic(\''+esc(JSON.stringify(r)).replace(/'/g,'&#39;')+'\')">View</button>'+
+        '</div>';
+      }).join('');
+    } catch(e){ empty.hidden = false; empty.textContent = 'Could not load your comics.'; }
+  }
+  window.reopenComic = async function(json){
+    try { var r = JSON.parse(json.replace(/&#39;/g,"'")); $('resultNote').textContent=''; await drawResult(r); nav('result'); } catch(e){}
+  };
+
+  // ---- boot ----
+  async function boot(){
+    if (sb){
+      sb.auth.onAuthStateChange(function(event, authSession){
+        if (event === 'PASSWORD_RECOVERY'){ nav('resetpw'); }
+      });
+      try {
+        var { data } = await sb.auth.getSession();
+        if (data && data.session){
+          var u = data.session.user;
+          session = { id: u.id, email: u.email, name: (u.user_metadata||{}).name || u.email };
+        }
+      } catch(e){}
+    }
+    renderNav();
+    if (session) nav('mycomics'); else nav('landing');
+  }
+  document.addEventListener('DOMContentLoaded', boot);
+})();
+</script>
+</body>
+</html>
