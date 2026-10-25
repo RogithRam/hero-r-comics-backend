@@ -1,8 +1,8 @@
 {
   "name": "hero-r-comics-backend",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Backend for Hero-R Comics: turns a character photo/avatar into real AI comic art using a face-preserving image model (via Replicate).",
+  "description": "Backend for Hero-R Comics: turns a character avatar into bold-ink comic-book art using local image processing (edge detection + posterization). Free, no API key or billing required.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "sharp": "^0.33.5"
   }
 }
