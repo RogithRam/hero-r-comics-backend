@@ -24,13 +24,12 @@ app.use(express.json({ limit: '15mb' })); // images arrive as base64 data URLs
 
 const REPLICATE_API_TOKEN = process.env.REPLICATE_API_TOKEN;
 
-// Find the exact model + version string on https://replicate.com before
-// deploying — model names/versions change over time, so don't trust a
-// hard-coded value here. Good starting points for face-preserving,
-// identity-locked stylization: search Replicate for "photomaker",
-// "instant-id", or "ip-adapter-faceid". Copy the "owner/model:version"
-// string from the model's page into REPLICATE_MODEL_VERSION below.
-const MODEL_VERSION = process.env.REPLICATE_MODEL_VERSION || '';
+// google/nano-banana-pro is an "Official" Replicate model, which means it's
+// called by name (no version hash needed, unlike community models). It's an
+// image-editing model: give it a reference photo + a prompt and it redraws
+// the style while keeping the same person/face recognizable.
+const MODEL_OWNER = process.env.REPLICATE_MODEL_OWNER || 'google';
+const MODEL_NAME = process.env.REPLICATE_MODEL_NAME || 'nano-banana-pro';
 
 app.get('/', (req, res) => {
   res.send('Hero-R Comics AI art backend is running.');
@@ -46,31 +45,28 @@ app.post('/api/stylize', async (req, res) => {
     if (!REPLICATE_API_TOKEN) {
       return res.status(500).json({ error: 'Server has no REPLICATE_API_TOKEN configured yet.' });
     }
-    if (!MODEL_VERSION) {
-      return res.status(500).json({ error: 'Server has no REPLICATE_MODEL_VERSION configured yet.' });
-    }
 
-    // 1. Start the prediction.
-    const createRes = await fetch('https://api.replicate.com/v1/predictions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Token ${REPLICATE_API_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        version: MODEL_VERSION,
-        input: {
-          // Field names vary by model — check the model's "API" tab on
-          // Replicate and adjust these to match (e.g. some expect
-          // `input_image`, others `face_image`, `image`, etc.)
-          input_image: imageDataUrl,
-          prompt: style
-            ? `comic book style illustration, ${style}, bold ink lines, vibrant colors`
-            : 'comic book style illustration, bold ink lines, vibrant colors',
-          num_inference_steps: 20
-        }
-      })
-    });
+    // 1. Start the prediction. Official models use this models/{owner}/{name}
+    // endpoint and don't need a version hash in the body.
+    const createRes = await fetch(
+      `https://api.replicate.com/v1/models/${MODEL_OWNER}/${MODEL_NAME}/predictions`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Token ${REPLICATE_API_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          input: {
+            image_input: [imageDataUrl],
+            prompt: style
+              ? `Redraw this as a bold-ink comic book illustration, ${style} style, vibrant colors, keep the exact same face and facial structure.`
+              : 'Redraw this as a bold-ink comic book illustration, vibrant colors, keep the exact same face and facial structure.',
+            output_format: 'png'
+          }
+        })
+      }
+    );
 
     const prediction = await createRes.json();
     if (!createRes.ok) {

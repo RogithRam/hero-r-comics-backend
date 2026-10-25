@@ -17,20 +17,20 @@ redraws the art style while keeping the same face — and returns the result.
 
 1. Sign up at https://replicate.com
 2. Go to https://replicate.com/account/api-tokens and create a token.
-3. Search Replicate for a face-preserving stylization model — **PhotoMaker**,
-   **InstantID**, or an **IP-Adapter FaceID** model are good starting points.
-   Open the model's page, click its "API" tab, and copy the exact
-   `owner/model:version` string shown there (these change over time, so
-   always copy it fresh rather than reusing an old one).
-4. Check that model's input field names on the same API tab — some expect
-   `input_image`, others `face_image` or `image`. Update the `input` object
-   in `server.js` to match if they differ from what's there now.
+
+That's it for setup — `server.js` is already wired to **google/nano-banana-pro**,
+an official Replicate image-editing model that takes a reference photo +
+prompt and redraws the style while keeping the same face. It's called by
+model name, so no version hash to copy or keep updated. If you ever want to
+swap in a different model, set `REPLICATE_MODEL_OWNER` /
+`REPLICATE_MODEL_NAME` in your environment and adjust the `input` fields in
+`server.js` to match that model's schema (check its "API" tab on Replicate).
 
 ## 2. Run it locally (optional, to test first)
 
 ```
 cp .env.example .env
-# fill in REPLICATE_API_TOKEN and REPLICATE_MODEL_VERSION in .env
+# fill in REPLICATE_API_TOKEN in .env
 npm install
 npm start
 ```
@@ -51,7 +51,6 @@ curl -X POST http://localhost:3000/api/stylize \
    usually detects both automatically).
 4. In the service's **Environment** settings, add:
    - `REPLICATE_API_TOKEN` = your token from step 1
-   - `REPLICATE_MODEL_VERSION` = the version string from step 1
 5. Deploy. Render gives you a public URL like `https://your-app.onrender.com`.
 
 ## 4. Wire it into the Hero-R Comics page
