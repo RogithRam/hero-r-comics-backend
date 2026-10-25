@@ -1,11 +1,10 @@
 // Hero-R Comics — comic-art backend
 //
-// What this does: takes an image (the in-app SVG character rendered to a
-// PNG) and turns it into bold-ink comic-book art — black outlines (via edge
-// detection) + flat posterized colors — entirely with image processing, no
-// paid AI model and no API key required. It runs 100% locally on this
-// server, so there's nothing to configure and nothing that can run out of
-// credit.
+// What this does: takes an image (a real uploaded photo, or the in-app SVG
+// character rendered to a PNG) and turns it into bold-ink comic-book art —
+// black outlines (via edge detection) + flat posterized colors — entirely
+// with local image processing. No AI model, no API key, no billing account,
+// no usage limits.
 //
 // This needs Node 18+.
 
@@ -25,21 +24,21 @@ function clamp(v) {
   return v < 0 ? 0 : v > 255 ? 255 : v;
 }
 
-// Converts a raw RGBA buffer into bold-ink comic art:
-// 1) Sobel edge detection -> thick black outlines
-// 2) Color posterization -> flat comic-book color blocks
-function stylizeComic(data, width, height, channels) {
+// Builds a Sobel gradient-magnitude map from a (already-smoothed) grayscale
+// buffer, and picks an edge threshold adaptively from that image's own
+// contrast (mean + a multiple of std-dev) instead of a fixed magic number.
+// A fixed threshold looks great on flat, hand-drawn SVG colors but picks up
+// every bit of skin texture / lighting gradient as "edges" on a real photo
+// — adaptive thresholding keeps only the strongest, most structural edges
+// regardless of how noisy or high-contrast the source photo is.
+function detectEdges(gray, width, height) {
   const pixelCount = width * height;
-  const gray = new Float32Array(pixelCount);
-  for (let i = 0, p = 0; i < data.length; i += channels, p++) {
-    gray[p] = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-  }
-
-  // Sobel edge detection.
-  const edge = new Uint8Array(pixelCount);
+  const mag = new Float32Array(pixelCount);
   const gx = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
   const gy = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
-  const EDGE_THRESHOLD = 80;
+
+  let sum = 0;
+  let count = 0;
 
   for (let y = 1; y < height - 1; y++) {
     for (let x = 1; x < width - 1; x++) {
@@ -54,13 +53,40 @@ function stylizeComic(data, width, height, channels) {
           k++;
         }
       }
-      const mag = Math.sqrt(sx * sx + sy * sy);
-      edge[y * width + x] = mag > EDGE_THRESHOLD ? 1 : 0;
+      const m = Math.sqrt(sx * sx + sy * sy);
+      mag[y * width + x] = m;
+      sum += m;
+      count++;
     }
   }
 
-  // Dilate the edge mask by one pixel so outlines read as bold ink lines
-  // rather than thin hairlines.
+  const mean = sum / Math.max(count, 1);
+  let varSum = 0;
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const d = mag[y * width + x] - mean;
+      varSum += d * d;
+    }
+  }
+  const stdDev = Math.sqrt(varSum / Math.max(count, 1));
+
+  // mean + 1.1*stdDev keeps only the stronger-than-typical gradients
+  // (face outline, hairline, eyebrows, nose bridge) while dropping the
+  // mass of small gradients caused by skin texture/lighting. Clamped so a
+  // very flat image still gets some outline and a very busy one doesn't
+  // turn fully black.
+  const threshold = clamp(Math.round(mean + 1.1 * stdDev));
+  const finalThreshold = Math.max(30, Math.min(threshold, 220));
+
+  const edge = new Uint8Array(pixelCount);
+  for (let p = 0; p < pixelCount; p++) {
+    edge[p] = mag[p] > finalThreshold ? 1 : 0;
+  }
+  return edge;
+}
+
+function dilateEdges(edge, width, height) {
+  const pixelCount = width * height;
   const boldEdge = new Uint8Array(pixelCount);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
@@ -82,13 +108,23 @@ function stylizeComic(data, width, height, channels) {
       boldEdge[p] = hit;
     }
   }
+  return boldEdge;
+}
 
-  // Posterize + composite.
-  const LEVELS = 5;
+// Composites bold black ink outlines over posterized (flat, comic-book
+// style) colors. `colorData` and `gray` must already be smoothed (blurred)
+// before this runs, or the result is a noisy speckled mess instead of
+// clean flat regions — see stylize() below.
+function stylizeComic(colorData, gray, width, height, colorChannels) {
+  const pixelCount = width * height;
+  const edge = detectEdges(gray, width, height);
+  const boldEdge = dilateEdges(edge, width, height);
+
+  const LEVELS = 4;
   const step = 255 / (LEVELS - 1);
   const out = Buffer.alloc(pixelCount * 4);
 
-  for (let p = 0, i = 0; p < pixelCount; p++, i += channels) {
+  for (let p = 0, i = 0; p < pixelCount; p++, i += colorChannels) {
     const o = p * 4;
     if (boldEdge[p]) {
       out[o] = 22;
@@ -96,10 +132,10 @@ function stylizeComic(data, width, height, channels) {
       out[o + 2] = 26;
       out[o + 3] = 255;
     } else {
-      out[o] = clamp(Math.round(Math.round(data[i] / step) * step));
-      out[o + 1] = clamp(Math.round(Math.round(data[i + 1] / step) * step));
-      out[o + 2] = clamp(Math.round(Math.round(data[i + 2] / step) * step));
-      out[o + 3] = channels === 4 ? data[i + 3] : 255;
+      out[o] = clamp(Math.round(Math.round(colorData[i] / step) * step));
+      out[o + 1] = clamp(Math.round(Math.round(colorData[i + 1] / step) * step));
+      out[o + 2] = clamp(Math.round(Math.round(colorData[i + 2] / step) * step));
+      out[o + 3] = colorChannels === 4 ? colorData[i + 3] : 255;
     }
   }
 
@@ -120,18 +156,35 @@ app.post('/api/stylize', async (req, res) => {
     }
     const inputBuffer = Buffer.from(match[1], 'base64');
 
-    // Flatten onto white (so transparent areas don't throw off the edge
-    // detection / posterization math) and boost saturation a bit for a
-    // punchier comic-book look before we process raw pixels.
-    const { data, info } = await sharp(inputBuffer)
-      .flatten({ background: '#ffffff' })
-      .modulate({ saturation: 1.5 })
-      .ensureAlpha()
-      .raw()
-      .toBuffer({ resolveWithObject: true });
+    // Flatten onto white so transparent areas don't throw off the math.
+    const base = sharp(inputBuffer).flatten({ background: '#ffffff' });
 
-    const { width, height, channels } = info;
-    const styledRaw = stylizeComic(data, width, height, channels);
+    // Two branches from the same decoded image:
+    // - color: lightly blurred + saturated, used for the posterized colors.
+    // - edge: more heavily blurred grayscale, used only to find outlines.
+    // Blurring before processing is what keeps real-photo skin texture and
+    // lighting noise from turning into a scribbly mess — it merges those
+    // small variations into smooth regions before we quantize/detect edges.
+    const [colorResult, edgeResult] = await Promise.all([
+      base
+        .clone()
+        .modulate({ saturation: 1.4 })
+        .blur(2.2)
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true }),
+      base
+        .clone()
+        .greyscale()
+        .blur(4.5)
+        .raw()
+        .toBuffer({ resolveWithObject: true })
+    ]);
+
+    const { width, height, channels: colorChannels } = colorResult.info;
+    const grayBuffer = edgeResult.data; // 1 channel, same width/height as colorResult
+
+    const styledRaw = stylizeComic(colorResult.data, grayBuffer, width, height, colorChannels);
 
     const outputBuffer = await sharp(styledRaw, { raw: { width, height, channels: 4 } })
       .png()
